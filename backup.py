@@ -23,7 +23,7 @@ tftp = config.get('tftp', 'ip')
 
 cursor = db.cursor()
 
-cursor.execute("select ip, access_snmp_write, type from devices where ip='10.0.2.162'")
+cursor.execute("select ip, access_snmp_write, type from devices LIMIT 10")
 
 for row in cursor.fetchall():
     do_backup_config(row[0], row[1], row[2], tftp)
