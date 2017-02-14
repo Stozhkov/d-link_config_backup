@@ -1,4 +1,5 @@
 import MySQLdb
+import hashlib
 import datetime
 import ConfigParser
 from subprocess import Popen, PIPE
@@ -20,6 +21,15 @@ def do_backup_config(ip, community, type, tftp):
               shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
 
 
+def get_md5_sum(file_name):
+    m = hashlib.md5()
+    fd = open(file_name, 'rb')
+    b = fd.read()
+    m.update(b)
+    fd.close()
+    return m.hexdigest()
+
+
 config = ConfigParser.ConfigParser()
 config.read('config.cfg')
 
@@ -34,7 +44,7 @@ cursor = db.cursor()
 cursor.execute("select ip, access_snmp_write, type from devices LIMIT 10")
 
 for row in cursor.fetchall():
-#    print row[0]; print row[1]; print row[2]
+
     do_backup_config(row[0], row[1], row[2], ip_tftp_server)
 
 db.close()
