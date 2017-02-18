@@ -29,19 +29,67 @@ def write_in_log(wil_message, wil_ip=''):
 
 
 def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name):
-    if dbc_type in [17, 25, 41]:
+
+    if dbc_type in [15, 17, 24, 25, 41]:
+
+        # Type of support switches:
+        # 15 - D-link DES-3526
+        # 17 - D-link DES-3200-28 hw A1/B1
+        # 24 - D-link DGS-3200-16
+        # 25 - D-link DES-3200-18 hw A1/B1
+        # 41 - D-link DES-3200-26 hw A1/B1
+
         Popen("snmpset -v2c -c " + dbc_community + " " + dbc_ip + " 1.3.6.1.4.1.171.12.1.2.1.1.3.3 a " + dbc_tftp + " \
             1.3.6.1.4.1.171.12.1.2.1.1.4.3 i 2 \
             1.3.6.1.4.1.171.12.1.2.1.1.5.3 s dlink/" + dbc_file_name + " \
             1.3.6.1.4.1.171.12.1.2.1.1.7.3 i 2 \
             1.3.6.1.4.1.171.12.1.2.1.1.8.3 i 3",
               shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
-    else:
+
+    elif dbc_type in [27, 28, 29, 30, 32, 33, 39, 40]:
+
+        # Type of support switches:
+        # 27 - D-link DES-3200-26 hw C1
+        # 28 - D-link DGS-3620-28SC
+        # 29 - D-link DGS-3120-24SC
+        # 30 - D-link DES-3200-52
+        # 32 - D-link DGS-3620-28TC
+        # 33 - D-link DES-3200-28F
+        # 39 - D-link DES-3200-28 hw C1
+        # 40 - D-link DES-3200-18 hw C1
+
         Popen("snmpset -v2c -c " + dbc_community + " " + dbc_ip + " 1.3.6.1.4.1.171.12.1.2.18.1.1.3.3 a " + dbc_tftp + " \
             1.3.6.1.4.1.171.12.1.2.18.1.1.5.3 s dlink/" + dbc_file_name + " \
             1.3.6.1.4.1.171.12.1.2.18.1.1.8.3 i 2 \
             1.3.6.1.4.1.171.12.1.2.18.1.1.12.3 i 3",
               shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
+
+    elif dbc_type in [35]:
+
+        # Type of support switches:
+        # 35 - D-link DGS-1100-10/ME
+
+        Popen("snmpset -v2c -c " + dbc_community + " " + dbc_ip + " 1.3.6.1.4.1.171.10.134.2.1.3.2.1.0 x C0A810B4 \
+                    1.3.6.1.4.1.171.10.134.2.1.3.2.2.0 i 1 \
+                    1.3.6.1.4.1.171.10.134.2.1.3.2.4.0 s dlink/" + dbc_file_name + " \
+                    1.3.6.1.4.1.171.10.134.2.1.3.2.5.0 i 2",
+              shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
+
+#    elif dbc_type in [37]:
+
+        # Type of support switches:
+        # 35 - D-link DGS-1100-10/ME
+
+#        Popen("snmpset -v2c -c " + dbc_community + " " + dbc_ip + " 1.3.6.1.4.1.171.10.139.3.1.1.1.2.4.2.0 x C0A810B4 \
+#                    1.3.6.1.4.1.171.10.139.3.1.1.1.2.4.3.0 s dlink/" + dbc_file_name + " \
+#                    1.3.6.1.4.1.171.10.139.3.1.1.1.2.4.4.0 i 1 \
+#                    1.3.6.1.4.1.171.10.139.3.1.1.1.2.4.6.0 i 2",
+#              shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
+
+    else:
+
+        write_in_log("I do not know how to do backup from this switch", dbc_ip)
+        print "I do not know how to do backup from this switch. " + dbc_ip
 
 
 def get_md5_sum(gms_file_name):
@@ -104,7 +152,8 @@ cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id` \
                 LEFT JOIN `devices_config` \
                     ON `devices`.`type` = `devices_config`.`type` \
                 WHERE `ping` = '1' \
-                    AND `devices_config`.`do_backup` = '1'")
+                    AND `devices_config`.`do_backup` = '1' \
+                LIMIT 100")
 
 for row in cursor.fetchall():
 
