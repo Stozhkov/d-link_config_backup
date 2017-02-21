@@ -53,7 +53,7 @@ def restore_config():
     tn.write("download cfg_fromTFTP 10.90.90.91 src_file " + config_file_name + " dest_file " + random_config_name + "\n")
     tn.read_until("admin#")
     tn.write("config configuration " + random_config_name + " boot_up\n")
-    tn.read_until("DES-3200-26:admin#")
+    tn.read_until("admin#")
     tn.write("reboot force_agree\n")
 
 
