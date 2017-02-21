@@ -41,7 +41,7 @@ def get_random_word():
 
 
 def restore_config():
-    random_config_name = "config" + get_random_word() + ".cfg"
+    rnd_config_name = "config" + get_random_word() + ".cfg"
 
     tn = telnetlib.Telnet(ip_address)
     tn.read_until("UserName:")
@@ -50,9 +50,9 @@ def restore_config():
     tn.write("\n")
 
     tn.read_until("admin#")
-    tn.write("download cfg_fromTFTP 10.90.90.91 src_file " + config_file_name + " dest_file " + random_config_name + "\n")
+    tn.write("download cfg_fromTFTP 10.90.90.91 src_file " + config_file_name + " dest_file " + rnd_config_name + "\n")
     tn.read_until("admin#")
-    tn.write("config configuration " + random_config_name + " boot_up\n")
+    tn.write("config configuration " + rnd_config_name + " boot_up\n")
     tn.read_until("admin#")
     tn.write("reboot force_agree\n")
 
