@@ -96,8 +96,6 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
 
         snmp_command = "Telnet"
 
-        print dbc_ip
-
         tn = telnetlib.Telnet(dbc_ip)
 #        tn.set_debuglevel(1)
 
@@ -119,6 +117,36 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         tn.read_until("DGS-3627G:admin#")
         tn.write("logout\n")
 
+    elif dbc_type in [19]:
+
+        # Type of support switches:
+        # 19 - D-link DGS-3100-24TG
+
+        snmp_command = "Telnet"
+
+        tn = telnetlib.Telnet(dbc_ip)
+#        tn.set_debuglevel(1)
+
+        tn.read_until('UserName:', 5)
+
+        tn.write(dbc_access_username)
+        time.sleep(1)
+
+        tn.write("\r")
+        time.sleep(1)
+
+        tn.write(dbc_access_password)
+        time.sleep(1)
+
+        tn.write("\r")
+        time.sleep(1)
+
+        tn.write("\r")
+        tn.read_until("#")
+        tn.write("upload configuration " + dbc_tftp + " dlink/" + dbc_file_name + "\n")
+        time.sleep(5)
+        tn.read_until("#")
+        tn.write("logout\n")
 
 #    elif dbc_type in [37]:
 
