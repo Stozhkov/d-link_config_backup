@@ -97,7 +97,6 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         snmp_command = "Telnet"
 
         tn = telnetlib.Telnet(dbc_ip)
-#        tn.set_debuglevel(1)
 
         tn.read_until('UserName:', 5)
 
@@ -125,7 +124,6 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         snmp_command = "Telnet"
 
         tn = telnetlib.Telnet(dbc_ip)
-#        tn.set_debuglevel(1)
 
         tn.read_until('UserName:', 5)
 
