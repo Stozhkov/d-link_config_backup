@@ -6,9 +6,11 @@ import random
 import MySQLdb
 import hashlib
 import datetime
+import telnetlib
 import ConfigParser
 import binascii
 import socket
+import time
 from time import sleep
 from subprocess import Popen, PIPE
 
@@ -39,7 +41,8 @@ def write_in_log(wil_message, wil_ip=''):
         wil_log_file.close()
 
 
-def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name):
+def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, dbc_access_username,
+                     dbc_access_password):
 
     if dbc_type in [15, 17, 24, 25, 41]:
 
@@ -86,10 +89,41 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name):
                     1.3.6.1.4.1.171.10.134.2.1.3.2.4.0 s dlink/" + dbc_file_name + " \
                     1.3.6.1.4.1.171.10.134.2.1.3.2.5.0 i 2"
 
+    elif dbc_type in [23]:
+
+        # Type of support switches:
+        # 23 - D-link DGS-3627G
+
+        snmp_command = "Telnet"
+
+        print dbc_ip
+
+        tn = telnetlib.Telnet(dbc_ip)
+#        tn.set_debuglevel(1)
+
+        tn.read_until('UserName:', 5)
+
+        tn.write(dbc_access_username)
+        time.sleep(1)
+
+        tn.write("\r")
+        time.sleep(1)
+
+        tn.write(dbc_access_password)
+        time.sleep(1)
+
+        tn.write("\r")
+        tn.read_until("#")
+        tn.write("upload cfg_toTFTP " + dbc_tftp + " dest_file dlink/" + dbc_file_name + "\n")
+        time.sleep(5)
+        tn.read_until("DGS-3627G:admin#")
+        tn.write("logout\n")
+
+
 #    elif dbc_type in [37]:
 
         # Type of support switches:
-        # 35 - D-link DGS-1100-10/ME
+        # 37 - Dlink DXS-1210-12SC
 
 #        Popen("snmpset -v2c -c " + dbc_community + " " + dbc_ip + " \
 #                   1.3.6.1.4.1.171.10.139.3.1.1.1.2.4.2.0 x C0A810B4 \
@@ -105,11 +139,13 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name):
         write_in_log("I do not know how to do backup from this switch", dbc_ip)
         print "I do not know how to do backup from this switch. " + dbc_ip
 
-    if snmp_command != '':
-        Popen(snmp_command, shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
+    if snmp_command == '':
+        return False
+    elif snmp_command == 'Telnet':
         return True
     else:
-        return False
+        Popen(snmp_command, shell=True, stdin=PIPE, stdout=PIPE).stdout.read().split()
+        return True
 
 
 def get_md5_sum(gms_file_name):
@@ -150,7 +186,7 @@ def get_random_word():
 
 
 config = ConfigParser.ConfigParser()
-config.read(r'/usr/local/src/backup/config.cfg')
+config.read('config.cfg')
 
 ip_tftp_server = config.get('tftp', 'ip')
 path_to_tftp_folder = config.get('tftp', 'path_to_tftp_folder')
@@ -169,7 +205,7 @@ db = MySQLdb.connect(host=host_name,
 
 cursor = db.cursor()
 
-cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id` \
+cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id`, `access_username`, `access_password` \
                 FROM `devices` \
                 LEFT JOIN `devices_config` \
                     ON `devices`.`type` = `devices_config`.`type` \
@@ -183,9 +219,12 @@ for row in cursor.fetchall():
     snmp_community = str(row[1])
     device_type = row[2]
     device_id = str(row[3])
+    access_username = str(row[4])
+    access_password = str(row[5])
 
     file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
-    if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name):
+    if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name, access_username,
+                        access_password):
         sleep(10)
         if os.path.isfile(path_to_tftp_folder + file_name):
             md5_hash = str(get_md5_sum(path_to_tftp_folder + file_name))
