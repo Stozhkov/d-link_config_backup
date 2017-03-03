@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 import shutil
 import random
@@ -148,7 +150,7 @@ def get_random_word():
 
 
 config = ConfigParser.ConfigParser()
-config.read('config.cfg')
+config.read(r'/usr/local/src/backup/config.cfg')
 
 ip_tftp_server = config.get('tftp', 'ip')
 path_to_tftp_folder = config.get('tftp', 'path_to_tftp_folder')
@@ -173,7 +175,7 @@ cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id` \
                     ON `devices`.`type` = `devices_config`.`type` \
                 WHERE `ping` = '1' \
                     AND `devices_config`.`do_backup` = '1' \
-                LIMIT 15")
+                LIMIT 1000")
 
 for row in cursor.fetchall():
 
@@ -184,7 +186,7 @@ for row in cursor.fetchall():
 
     file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
     if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name):
-        sleep(5)
+        sleep(10)
         if os.path.isfile(path_to_tftp_folder + file_name):
             md5_hash = str(get_md5_sum(path_to_tftp_folder + file_name))
 
