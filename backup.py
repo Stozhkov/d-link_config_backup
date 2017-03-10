@@ -198,8 +198,8 @@ def move_file_to_archive(mfta_file_name):
     shutil.move(os.path.join(path_to_tftp_folder, mfta_file_name), os.path.join(path_to_archive, mfta_file_name))
 
 
-def remove_file(rf_file_name):
-    os.remove(path_to_tftp_folder + rf_file_name)
+def remove_file(rf_file_name, rf_path_to_folder):
+    os.remove(rf_path_to_folder + rf_file_name)
 
 
 def get_random_word():
@@ -209,6 +209,22 @@ def get_random_word():
         i += 1
         grw_word = grw_word + random.choice("wertyupasdfghkzxcvbnm0123456789ijq")
     return grw_word
+
+
+def delete_config(config_name):
+    remove_file(config_name, path_to_archive)
+    cursor.execute("DELETE FROM `" + table_name + "` WHERE `" + table_name + "`.`fname` = '" + config_name + "'")
+    db.commit()
+    write_in_log("Config " + config_name + " was deleted.")
+
+
+def check_duplicate_config(device_id, hash):
+    cursor3 = db.cursor()
+    cursor3.execute("SELECT fname FROM `" + table_name + "` WHERE `devid` = '" + device_id + "' AND hash = '" + hash + "'\
+                        AND date < '" + str(datetime.date.today()) + "'")
+
+    for row in cursor3.fetchall():
+        delete_config(row[0])
 
 
 config = ConfigParser.ConfigParser()
@@ -257,9 +273,12 @@ for row in cursor.fetchall():
 
             if check_config(device_id, md5_hash):
                 write_in_log("Config file was not updated in last time", ip_address)
-                remove_file(file_name)
+                remove_file(file_name, path_to_tftp_folder)
             else:
                 move_file_to_archive(file_name)
+
+                check_duplicate_config(device_id, md5_hash)
+
                 cursor.execute("insert into `" + table_name + "` (devid, fname, hash)\
                                 VALUES(" + device_id + ", '" + file_name + "', '" + md5_hash + "')")
                 db.commit()
