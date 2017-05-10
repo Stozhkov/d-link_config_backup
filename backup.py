@@ -11,40 +11,39 @@ import ConfigParser
 import binascii
 import socket
 import time
-from time import sleep
 from subprocess import Popen, PIPE
 
 
-def ip_to_hex(ip):
-    return binascii.hexlify(socket.inet_aton(ip)).upper()
+def ip_to_hex(ip_address):
+    return binascii.hexlify(socket.inet_aton(ip_address)).upper()
 
 
-def write_in_log(wil_message, wil_ip=''):
+def write_in_log(message, ip_address=''):
 
     try:
-        wil_log_file = open(path_to_log_file, 'a', buffering=-1)
+        log_file = open(path_to_log_file, 'a', buffering=-1)
     except IOError as e:
         print "Can not open log file. I/O Error({0}): {1}".format(e.errno, e.strerror)
         exit(1)
     else:
         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if wil_ip != '':
-            wil_result_message = date_time + " " + wil_ip + " " + wil_message
+        if ip_address != '':
+            result_message = date_time + " " + ip_address + " " + message
         else:
-            wil_result_message = date_time + " " + wil_message
+            result_message = date_time + " " + message
 
-        print wil_result_message
+        print result_message
 
         del date_time
 
-        wil_log_file.write(wil_result_message + '\n')
-        wil_log_file.close()
+        log_file.write(result_message + '\n')
+        log_file.close()
 
 
-def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, dbc_access_username,
-                     dbc_access_password):
+def do_backup_config(ip_address, community_name, switch_type, tftp_address, file_name, access_username,
+                     access_password):
 
-    if dbc_type in [15, 17, 24, 25, 41]:
+    if switch_type in [15, 17, 24, 25, 41]:
 
         # Type of support switches:
         # 15 - D-link DES-3526
@@ -53,14 +52,14 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         # 25 - D-link DES-3200-18 hw A1/B1
         # 41 - D-link DES-3200-26 hw A1/B1
 
-        snmp_command = "snmpset -v2c -c " + dbc_community + " " + dbc_ip + " \
-                    1.3.6.1.4.1.171.12.1.2.1.1.3.3 a " + dbc_tftp + " \
+        snmp_command = "snmpset -v2c -c " + community_name + " " + ip_address + " \
+                    1.3.6.1.4.1.171.12.1.2.1.1.3.3 a " + tftp_address + " \
                     1.3.6.1.4.1.171.12.1.2.1.1.4.3 i 2 \
-                    1.3.6.1.4.1.171.12.1.2.1.1.5.3 s dlink/" + dbc_file_name + " \
+                    1.3.6.1.4.1.171.12.1.2.1.1.5.3 s dlink/" + file_name + " \
                     1.3.6.1.4.1.171.12.1.2.1.1.7.3 i 2 \
                     1.3.6.1.4.1.171.12.1.2.1.1.8.3 i 3"
 
-    elif dbc_type in [27, 28, 29, 30, 32, 33, 39, 40]:
+    elif switch_type in [27, 28, 29, 30, 32, 33, 39, 40]:
 
         # Type of support switches:
         # 27 - D-link DES-3200-26 hw C1
@@ -72,68 +71,68 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         # 39 - D-link DES-3200-28 hw C1
         # 40 - D-link DES-3200-18 hw C1
 
-        snmp_command = "snmpset -v2c -c " + dbc_community + " " + dbc_ip + " \
-                    1.3.6.1.4.1.171.12.1.2.18.1.1.3.3 a " + dbc_tftp + " \
-                    1.3.6.1.4.1.171.12.1.2.18.1.1.5.3 s dlink/" + dbc_file_name + " \
+        snmp_command = "snmpset -v2c -c " + community_name + " " + ip_address + " \
+                    1.3.6.1.4.1.171.12.1.2.18.1.1.3.3 a " + tftp_address + " \
+                    1.3.6.1.4.1.171.12.1.2.18.1.1.5.3 s dlink/" + file_name + " \
                     1.3.6.1.4.1.171.12.1.2.18.1.1.8.3 i 2 \
                     1.3.6.1.4.1.171.12.1.2.18.1.1.12.3 i 3"
 
-    elif dbc_type in [35]:
+    elif switch_type in [35]:
 
         # Type of support switches:
         # 35 - D-link DGS-1100-10/ME
 
-        snmp_command = "snmpset -v2c -c " + dbc_community + " " + dbc_ip + " \
-                    1.3.6.1.4.1.171.10.134.2.1.3.2.1.0 x " + ip_to_hex(dbc_tftp) + " \
+        snmp_command = "snmpset -v2c -c " + community_name + " " + ip_address + " \
+                    1.3.6.1.4.1.171.10.134.2.1.3.2.1.0 x " + ip_to_hex(tftp_address) + " \
                     1.3.6.1.4.1.171.10.134.2.1.3.2.2.0 i 1 \
-                    1.3.6.1.4.1.171.10.134.2.1.3.2.4.0 s dlink/" + dbc_file_name + " \
+                    1.3.6.1.4.1.171.10.134.2.1.3.2.4.0 s dlink/" + file_name + " \
                     1.3.6.1.4.1.171.10.134.2.1.3.2.5.0 i 2"
 
-    elif dbc_type in [23]:
+    elif switch_type in [23]:
 
         # Type of support switches:
         # 23 - D-link DGS-3627G
 
         snmp_command = "Telnet"
 
-        tn = telnetlib.Telnet(dbc_ip)
+        tn = telnetlib.Telnet(ip_address)
 
         tn.read_until('UserName:', 5)
 
-        tn.write(dbc_access_username)
+        tn.write(access_username)
         time.sleep(1)
 
         tn.write("\r")
         time.sleep(1)
 
-        tn.write(dbc_access_password)
+        tn.write(access_password)
         time.sleep(1)
 
         tn.write("\r")
         tn.read_until("#")
-        tn.write("upload cfg_toTFTP " + dbc_tftp + " dest_file dlink/" + dbc_file_name + "\n")
-        time.sleep(5)
+        tn.write("upload cfg_toTFTP " + tftp_address + " dest_file dlink/" + file_name + "\n")
+        time.sleep(15)
         tn.read_until("DGS-3627G:admin#")
         tn.write("logout\n")
 
-    elif dbc_type in [19]:
+    elif switch_type in [19]:
 
         # Type of support switches:
         # 19 - D-link DGS-3100-24TG
 
         snmp_command = "Telnet"
 
-        tn = telnetlib.Telnet(dbc_ip)
+        tn = telnetlib.Telnet(ip_address)
 
         tn.read_until('UserName:', 5)
 
-        tn.write(dbc_access_username)
+        tn.write(access_username)
         time.sleep(1)
 
         tn.write("\r")
         time.sleep(1)
 
-        tn.write(dbc_access_password)
+        tn.write(access_password)
         time.sleep(1)
 
         tn.write("\r")
@@ -141,7 +140,7 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
 
         tn.write("\r")
         tn.read_until("#")
-        tn.write("upload configuration " + dbc_tftp + " dlink/" + dbc_file_name + "\n")
+        tn.write("upload configuration " + tftp_address + " dlink/" + file_name + "\n")
         time.sleep(5)
         tn.read_until("#")
         tn.write("logout\n")
@@ -162,8 +161,8 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
 
         snmp_command = ''
 
-        write_in_log("I do not know how to do backup from this switch", dbc_ip)
-        print "I do not know how to do backup from this switch. " + dbc_ip
+        write_in_log("I do not know how to do backup from this switch", ip_address)
+        print "I do not know how to do backup from this switch. " + ip_address
 
     if snmp_command == '':
         return False
@@ -174,41 +173,41 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         return True
 
 
-def get_md5_sum(gms_file_name):
+def get_md5_sum(file_name):
     m = hashlib.md5()
-    fd = open(gms_file_name, 'rb')
+    fd = open(file_name, 'rb')
     b = fd.read()
     m.update(b)
     fd.close()
     return m.hexdigest()
 
 
-def check_config(cc_device_id, cc_hash):
+def check_config(device_id, md5_hash):
     cursor3 = db.cursor()
-    cursor3.execute("SELECT hash FROM `" + table_name + "` WHERE `devid` = '" + cc_device_id + "'\
+    cursor3.execute("SELECT hash FROM `" + table_name + "` WHERE `devid` = '" + device_id + "'\
                     ORDER BY date DESC LIMIT 1")
-    for cc_row in cursor3.fetchall():
-        if cc_row[0] == cc_hash:
+    for row in cursor3.fetchall():
+        if row[0] == md5_hash:
             return True
         else:
             return False
 
 
-def move_file_to_archive(mfta_file_name):
-    shutil.move(os.path.join(path_to_tftp_folder, mfta_file_name), os.path.join(path_to_archive, mfta_file_name))
+def move_file_to_archive(file_name):
+    shutil.move(os.path.join(path_to_tftp_folder, file_name), os.path.join(path_to_archive, file_name))
 
 
-def remove_file(rf_file_name, rf_path_to_folder):
-    os.remove(rf_path_to_folder + rf_file_name)
+def remove_file(file_name, path_to_folder):
+    os.remove(path_to_folder + file_name)
 
 
 def get_random_word():
     i = 0
-    grw_word = ''
+    random_word = ''
     while i < 3:
         i += 1
-        grw_word = grw_word + random.choice("wertyupasdfghkzxcvbnm0123456789ijq")
-    return grw_word
+        random_word = random_word + random.choice("wertyupasdfghkzxcvbnm0123456789ijq")
+    return random_word
 
 
 def delete_config(config_name):
@@ -218,9 +217,9 @@ def delete_config(config_name):
     write_in_log("Config " + config_name + " was deleted.")
 
 
-def check_duplicate_config(device_id, hash):
+def check_duplicate_config(device_id, md5_hash):
     cursor3 = db.cursor()
-    cursor3.execute("SELECT fname FROM `" + table_name + "` WHERE `devid` = '" + device_id + "' AND hash = '" + hash + "'\
+    cursor3.execute("SELECT fname FROM `" + table_name + "` WHERE `devid` = '" + device_id + "' AND hash = '" + md5_hash + "'\
                         AND date < '" + str(datetime.date.today()) + "'")
 
     for row in cursor3.fetchall():
@@ -251,7 +250,7 @@ cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id`, `acces
                 FROM `devices` \
                 LEFT JOIN `devices_config` \
                     ON `devices`.`type` = `devices_config`.`type` \
-                WHERE `ping` = '1' \
+                WHERE `ping` = '1'\
                     AND `devices_config`.`do_backup` = '1' \
                 LIMIT 1000")
 
@@ -265,9 +264,10 @@ for row in cursor.fetchall():
     access_password = str(row[5])
 
     file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
+
     if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name, access_username,
                         access_password):
-        sleep(10)
+        time.sleep(10)
         if os.path.isfile(path_to_tftp_folder + file_name):
             md5_hash = str(get_md5_sum(path_to_tftp_folder + file_name))
 
