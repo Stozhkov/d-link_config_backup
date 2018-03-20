@@ -146,6 +146,59 @@ def do_backup_config(dbc_ip, dbc_community, dbc_type, dbc_tftp, dbc_file_name, d
         tn.read_until("#")
         tn.write("logout\n")
 
+    elif dbc_type in [38]:
+
+        # Type of support switches:
+        # 38 - ELTEX LTE-8x
+
+        snmp_command = "Telnet"
+
+        tn = telnetlib.Telnet(dbc_ip)
+
+        tn.read_until('login: ', 3)
+
+        tn.write(dbc_access_username)
+        tn.write("\r")
+
+        tn.read_until('Password: ', 3)
+
+        tn.write(dbc_access_password)
+        tn.write("\r")
+        sleep(3)
+
+        tn.read_until('LTE-2X# ', 5)
+        tn.write("upload config backup /dlink/" + dbc_file_name + " " + dbc_tftp + "\n")
+        tn.write("\r")
+        tn.read_until("LTE-2X# ", 5)
+        tn.write('exit' + '\n')
+
+    elif dbc_type in [43]:
+
+        # Type of support switches:
+        # 43 - ELTEX LTP-8x
+
+        snmp_command = "Telnet"
+
+        tn = telnetlib.Telnet(dbc_ip)
+
+        tn.read_until('login: ', 3)
+
+        tn.write(dbc_access_username)
+        tn.write("\r")
+
+        tn.read_until('Password: ', 3)
+
+        tn.write(dbc_access_password)
+        tn.write("\r")
+        sleep(3)
+
+        tn.read_until('LTP-8X# ', 5)
+        tn.write("copy fs://config tftp://" + dbc_tftp + "/dlink/" + dbc_file_name + "\n")
+        tn.write("\r")
+        tn.read_until("LTP-8X# ", 5)
+        tn.write('exit' + '\n')
+
+
 #    elif dbc_type in [37]:
 
         # Type of support switches:
@@ -297,6 +350,10 @@ for row in cursor.fetchall():
     access_password = str(row[5])
 
     file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
+
+    if device_type == 38:
+        file_name = file_name + ".zip"
+
     if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name, access_username,
                         access_password):
         sleep(10)
