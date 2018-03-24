@@ -498,6 +498,7 @@ while row is not None:
 
     row = cursor.fetchone()
 
+
 find_deleted_switch()
 
 db.commit()
