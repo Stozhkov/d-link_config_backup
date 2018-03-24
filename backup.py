@@ -7,6 +7,7 @@ import MySQLdb
 import hashlib
 import datetime
 import telnetlib
+import threading
 import ConfigParser
 import binascii
 import socket
@@ -237,9 +238,12 @@ def get_md5_sum(gms_file_name):
 
 
 def check_config(cc_device_id, cc_hash):
-    cursor3 = db.cursor()
+    cc_db = MySQLdb.connect(host=host_name, user=user_name, passwd=password, db=db_name)
+    cursor3 = cc_db.cursor()
     cursor3.execute("SELECT hash FROM `" + table_name + "` WHERE `devid` = '" + cc_device_id + "'\
                     ORDER BY date DESC LIMIT 1")
+    cc_db.commit()
+    cc_db.close()
     for cc_row in cursor3.fetchall():
         if cc_row[0] == cc_hash:
             return True
@@ -265,23 +269,31 @@ def get_random_word():
 
 
 def delete_config(config_name):
+    dc_db = MySQLdb.connect(host=host_name, user=user_name, passwd=password, db=db_name)
+    cursor = dc_db.cursor()
     remove_file(config_name, path_to_archive)
     cursor.execute("DELETE FROM `" + table_name + "` WHERE `" + table_name + "`.`fname` = '" + config_name + "'")
-    db.commit()
     write_in_log("Config " + config_name + " was deleted.")
+    dc_db.commit()
+    dc_db.close()
 
 
 def check_duplicate_config(device_id, hash):
-    cursor3 = db.cursor()
+    cdc_db = MySQLdb.connect(host=host_name, user=user_name, passwd=password, db=db_name)
+    cursor3 = cdc_db.cursor()
     cursor3.execute("SELECT fname FROM `" + table_name + "` WHERE `devid` = '" + device_id + "' AND hash = '" + hash + "'\
                         AND date < '" + str(datetime.date.today()) + "'")
 
     for row in cursor3.fetchall():
         delete_config(row[0])
 
+    cdc_db.commit()
+    cdc_db.close()
+
 
 def delete_old_config(device_id):
-    cursor4 = db.cursor()
+    doc_db = MySQLdb.connect(host=host_name, user=user_name, passwd=password, db=db_name)
+    cursor4 = doc_db.cursor()
     cursor4.execute("SELECT fname, date"
                     " FROM `" + table_name + "`"
                     " WHERE `devid` = '" + device_id + "' ORDER BY date DESC")
@@ -293,6 +305,9 @@ def delete_old_config(device_id):
         if counter > 5 and str(row[1]) < str(datetime.date.today()-datetime.timedelta(days=60)):
             delete_config(row[0])
             write_in_log("Config " + row[0] + " was deleted. He is too old.")
+
+    doc_db.commit()
+    doc_db.close()
 
 
 def find_deleted_switch():
@@ -310,6 +325,44 @@ def find_deleted_switch():
             for row2 in cursor6.fetchall():
                 delete_config(row2[0])
                 write_in_log("Config " + str(row[0]) + " was deleted. Switch was deleted in past.")
+
+
+def main_function(ip_address, snmp_community, device_type, device_id, access_username, access_password):
+
+    sleep(random.randint(0, 5))
+
+    mf_db = MySQLdb.connect(host=host_name, user=user_name, passwd=password, db=db_name)
+    cursor9 = mf_db.cursor()
+
+    file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
+
+    if device_type == 38:
+        file_name = file_name + ".zip"
+
+    if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name, access_username,
+                        access_password):
+        sleep(10)
+        if os.path.isfile(path_to_tftp_folder + file_name):
+            md5_hash = str(get_md5_sum(path_to_tftp_folder + file_name))
+
+            if check_config(device_id, md5_hash):
+                write_in_log("Config file was not updated in last time", ip_address)
+                remove_file(file_name, path_to_tftp_folder)
+            else:
+                move_file_to_archive(file_name)
+
+                check_duplicate_config(device_id, md5_hash)
+
+                cursor9.execute("insert into `" + table_name + "` (devid, fname, hash)\
+                                    VALUES(" + device_id + ", '" + file_name + "', '" + md5_hash + "')")
+                mf_db.commit()
+                mf_db.close()
+                write_in_log("Config was updated...", ip_address)
+        else:
+            write_in_log("File not found", device_id)
+
+
+        delete_old_config(device_id)
 
 
 config = ConfigParser.ConfigParser()
@@ -337,46 +390,113 @@ cursor.execute("SELECT `ip`, `access_snmp_write`, `devices`.`type`, `id`, `acces
                 LEFT JOIN `devices_config` \
                     ON `devices`.`type` = `devices_config`.`type` \
                 WHERE `ping` = '1' \
-                    AND `devices_config`.`do_backup` = '1' \
+                    AND `devices_config`.`do_backup` = '1' AND duplicate = '0' ORDER BY `id` \
                 LIMIT 1000")
 
-for row in cursor.fetchall():
+t1 = t2 = t3 = t4 = t5 = t6 = t7 = t8 = t9 = t10 = threading.Thread()
 
-    ip_address = str(row[0])
-    snmp_community = str(row[1])
-    device_type = row[2]
-    device_id = str(row[3])
-    access_username = str(row[4])
-    access_password = str(row[5])
+row = cursor.fetchone()
 
-    file_name = ip_address + "_" + str(datetime.date.today()) + "_" + get_random_word() + ".cfg"
+while row is not None:
 
-    if device_type == 38:
-        file_name = file_name + ".zip"
+    t1 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+    # print str(row[3]) + " thread 1"
 
-    if do_backup_config(ip_address, snmp_community, device_type, ip_tftp_server, file_name, access_username,
-                        access_password):
-        sleep(10)
-        if os.path.isfile(path_to_tftp_folder + file_name):
-            md5_hash = str(get_md5_sum(path_to_tftp_folder + file_name))
+    t1.start()
 
-            if check_config(device_id, md5_hash):
-                write_in_log("Config file was not updated in last time", ip_address)
-                remove_file(file_name, path_to_tftp_folder)
-            else:
-                move_file_to_archive(file_name)
+    row = cursor.fetchone()
 
-                check_duplicate_config(device_id, md5_hash)
+    if row is not None:
+        t2 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 2"
+        t2.start()
 
-                cursor.execute("insert into `" + table_name + "` (devid, fname, hash)\
-                                VALUES(" + device_id + ", '" + file_name + "', '" + md5_hash + "')")
-                db.commit()
-                write_in_log("Config was updated...", ip_address)
-        else:
-            write_in_log("File not found", device_id)
+    row = cursor.fetchone()
 
-        delete_old_config(device_id)
+    if row is not None:
+        t3 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 3"
+        t3.start()
 
+    row = cursor.fetchone()
+
+    if row is not None:
+        t4 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 4"
+        t4.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t5 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 5"
+        t5.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t6 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 6"
+        t6.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t7 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 7"
+        t7.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t8 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 8"
+        t8.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t9 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 9"
+        t9.start()
+
+    row = cursor.fetchone()
+
+    if row is not None:
+        t10 = threading.Thread(target=main_function, args=(row[0], row[1], row[2], str(row[3]), row[4], row[5]))
+        # print str(row[3]) + " thread 10"
+        t10.start()
+
+    t1.join()
+
+    if t2.is_alive():
+        t2.join()
+
+    if t3.is_alive():
+        t3.join()
+
+    if t4.is_alive():
+        t4.join()
+
+    if t5.is_alive():
+        t5.join()
+
+    if t6.is_alive():
+        t6.join()
+
+    if t7.is_alive():
+        t7.join()
+
+    if t8.is_alive():
+        t8.join()
+
+    if t9.is_alive():
+        t9.join()
+
+    if t10.is_alive():
+        t10.join()
+
+    row = cursor.fetchone()
 
 find_deleted_switch()
 
